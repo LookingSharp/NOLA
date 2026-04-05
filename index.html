@@ -1,0 +1,1873 @@
+<!DOCTYPE html>
+<!--
+  ============================================================
+  NEIGHBORHOOD EXPLORER — Generic Data-Driven Static Site
+  ============================================================
+  GitHub Pages compatible. No build step. No framework.
+  Drop in new DATA (below) to explore any neighborhood.
+
+  QUICK CUSTOMIZATION GUIDE
+  --------------------------
+  1. Edit the NEIGHBORHOOD_DATA object (search "BEGIN DATA")
+     • area       — title, subtitle, intro, map center & zoom
+     • places     — markers, cards, accordion details, galleries
+     • routes     — suggested walking routes with ordered stops
+  2. Colors: search "CSS CUSTOM PROPERTIES" to change the palette
+  3. Images: add real images to an /images/ folder and update src
+  4. To use an external JSON file instead of inline data, see the
+     comment at the bottom of this file: "FUTURE: EXTERNAL DATA"
+  ============================================================
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title id="page-title">Neighborhood Explorer</title>
+  <meta name="description" id="page-description" content="Self-guided neighborhood explorer" />
+
+  <!-- Leaflet CSS (CDN) -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="anonymous" />
+
+  <style>
+    /* ========================================================
+       CSS CUSTOM PROPERTIES — edit here to change the palette
+       ======================================================== */
+    :root {
+      --color-bg:          #faf9f6;
+      --color-surface:     #ffffff;
+      --color-border:      #e2ddd6;
+      --color-primary:     #4a3728;   /* deep warm brown */
+      --color-accent:      #b5622a;   /* terracotta */
+      --color-accent-dark: #8a4620;
+      --color-text:        #2c2520;
+      --color-text-muted:  #6b5e55;
+      --color-tag-bg:      #f0ebe4;
+      --color-tag-text:    #5c4a3a;
+      --color-active-tag:  #b5622a;
+      --color-focus:       #2a7ae2;
+      --radius-card:       12px;
+      --radius-btn:        8px;
+      --shadow-card:       0 2px 8px rgba(0,0,0,.08);
+      --shadow-elevated:   0 4px 16px rgba(0,0,0,.12);
+      --map-height:        52vh;
+      --font-body:         system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+    }
+
+    /* ========================================================
+       RESET & BASE
+       ======================================================== */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html { scroll-behavior: smooth; font-size: 16px; }
+
+    body {
+      background: var(--color-bg);
+      color: var(--color-text);
+      font-family: var(--font-body);
+      line-height: 1.55;
+      min-height: 100vh;
+    }
+
+    a { color: var(--color-accent); text-decoration: none; }
+    a:hover, a:focus-visible { text-decoration: underline; }
+    a:focus-visible, button:focus-visible, [tabindex]:focus-visible {
+      outline: 3px solid var(--color-focus);
+      outline-offset: 2px;
+    }
+    button { cursor: pointer; font-family: inherit; }
+    img { max-width: 100%; display: block; }
+
+    /* ========================================================
+       LAYOUT UTILITIES
+       ======================================================== */
+    .container { max-width: 960px; margin: 0 auto; padding: 0 16px; }
+
+    /* ========================================================
+       HEADER
+       ======================================================== */
+    #site-header {
+      background: var(--color-primary);
+      color: #fff;
+      padding: 20px 16px 16px;
+    }
+    #site-header .container { display: flex; flex-direction: column; gap: 4px; }
+    #header-title  { font-size: clamp(1.35rem, 5vw, 2rem); font-weight: 700; line-height: 1.2; }
+    #header-subtitle { font-size: clamp(.85rem, 3vw, 1rem); opacity: .85; font-weight: 400; }
+    #header-intro  { font-size: .9rem; opacity: .78; margin-top: 6px; max-width: 60ch; }
+
+    /* ========================================================
+       MAP SECTION
+       ======================================================== */
+    #map-section { position: relative; }
+    #map {
+      width: 100%;
+      height: var(--map-height);
+      min-height: 260px;
+      background: #d9d0c4;
+    }
+
+    /* Map controls bar */
+    #map-controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      padding: 10px 16px;
+      background: var(--color-surface);
+      border-bottom: 1px solid var(--color-border);
+      align-items: center;
+    }
+    #map-controls .container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      width: 100%;
+    }
+
+    /* ========================================================
+       BUTTONS
+       ======================================================== */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 7px 14px;
+      border-radius: var(--radius-btn);
+      border: 1.5px solid transparent;
+      font-size: .85rem;
+      font-weight: 600;
+      white-space: nowrap;
+      transition: background .15s, color .15s, border-color .15s;
+      background: var(--color-surface);
+      color: var(--color-text);
+      border-color: var(--color-border);
+    }
+    .btn:hover { background: var(--color-tag-bg); }
+    .btn-primary {
+      background: var(--color-accent);
+      color: #fff;
+      border-color: var(--color-accent);
+    }
+    .btn-primary:hover { background: var(--color-accent-dark); border-color: var(--color-accent-dark); }
+    .btn-sm { padding: 5px 10px; font-size: .8rem; }
+    .btn-icon { padding: 6px 10px; }
+
+    /* Location status message */
+    #location-status {
+      font-size: .82rem;
+      color: var(--color-text-muted);
+      padding: 4px 0;
+    }
+    #location-status.error { color: #c0392b; }
+    #location-status.success { color: #256429; }
+
+    /* ========================================================
+       FILTERS
+       ======================================================== */
+    #filters-section {
+      background: var(--color-surface);
+      border-bottom: 1px solid var(--color-border);
+      padding: 10px 0;
+    }
+    #filters-section .container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+      align-items: center;
+    }
+    .filter-label { font-size: .82rem; color: var(--color-text-muted); font-weight: 600; margin-right: 2px; }
+    .filter-chip {
+      padding: 5px 12px;
+      border-radius: 20px;
+      border: 1.5px solid var(--color-border);
+      background: var(--color-tag-bg);
+      color: var(--color-tag-text);
+      font-size: .8rem;
+      font-weight: 600;
+      transition: background .15s, color .15s, border-color .15s;
+    }
+    .filter-chip:hover { border-color: var(--color-accent); color: var(--color-accent); }
+    .filter-chip.active {
+      background: var(--color-active-tag);
+      color: #fff;
+      border-color: var(--color-active-tag);
+    }
+
+    /* ========================================================
+       MAIN CONTENT
+       ======================================================== */
+    #main-content { padding: 20px 0 40px; }
+    #main-content .container { display: flex; flex-direction: column; gap: 32px; }
+
+    /* Section headings */
+    .section-heading {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: var(--color-primary);
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    /* ========================================================
+       PLACE CARDS
+       ======================================================== */
+    #places-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 16px;
+    }
+    @media (min-width: 640px)  { #places-grid { grid-template-columns: 1fr 1fr; } }
+    @media (min-width: 900px)  { #places-grid { grid-template-columns: 1fr 1fr 1fr; } }
+
+    .place-card {
+      background: var(--color-surface);
+      border: 1.5px solid var(--color-border);
+      border-radius: var(--radius-card);
+      box-shadow: var(--shadow-card);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      transition: box-shadow .15s, transform .15s;
+    }
+    .place-card:hover { box-shadow: var(--shadow-elevated); transform: translateY(-1px); }
+    .place-card.hidden { display: none; }
+
+    /* Thumbnail */
+    .place-card-thumb {
+      width: 100%;
+      aspect-ratio: 16/9;
+      object-fit: cover;
+      background: var(--color-tag-bg);
+    }
+    .place-card-thumb-placeholder {
+      width: 100%;
+      aspect-ratio: 16/9;
+      background: linear-gradient(135deg, #e8e0d4 0%, #d4c9bc 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--color-text-muted);
+      font-size: .8rem;
+    }
+
+    /* Card body */
+    .place-card-body { padding: 14px 14px 0; flex: 1; }
+    .place-card-title {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--color-primary);
+      margin-bottom: 5px;
+    }
+    .place-card-desc { font-size: .875rem; color: var(--color-text-muted); margin-bottom: 8px; }
+
+    /* Tags */
+    .tag-list { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 8px; }
+    .tag {
+      font-size: .72rem;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 12px;
+      background: var(--color-tag-bg);
+      color: var(--color-tag-text);
+      text-transform: capitalize;
+    }
+
+    /* Meta line (duration / best-for) */
+    .place-card-meta {
+      font-size: .78rem;
+      color: var(--color-text-muted);
+      margin-bottom: 8px;
+    }
+    .place-card-meta span + span::before { content: " · "; }
+
+    /* Distance badge */
+    .distance-badge {
+      font-size: .75rem;
+      font-weight: 600;
+      color: var(--color-accent);
+      margin-left: 4px;
+    }
+
+    /* Card footer */
+    .place-card-footer {
+      padding: 10px 14px 14px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+      align-items: center;
+    }
+
+    /* ========================================================
+       ACCORDION (expandable details)
+       ======================================================== */
+    .accordion {
+      border-top: 1px solid var(--color-border);
+      margin-top: 4px;
+    }
+    .accordion-trigger {
+      width: 100%;
+      text-align: left;
+      padding: 10px 14px;
+      font-size: .82rem;
+      font-weight: 600;
+      color: var(--color-accent);
+      background: none;
+      border: none;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      justify-content: space-between;
+    }
+    .accordion-trigger:hover { background: var(--color-tag-bg); }
+    .accordion-trigger[aria-expanded="true"] .accordion-arrow { transform: rotate(180deg); }
+    .accordion-arrow { transition: transform .2s; font-style: normal; }
+    .accordion-panel {
+      display: none;
+      padding: 0 14px 14px;
+    }
+    .accordion-panel.open { display: block; }
+
+    /* Details inside accordion */
+    .detail-section { margin-bottom: 12px; }
+    .detail-heading { font-size: .8rem; font-weight: 700; color: var(--color-primary); margin-bottom: 4px; text-transform: uppercase; letter-spacing: .04em; }
+    .detail-text { font-size: .85rem; color: var(--color-text); }
+    .detail-list { font-size: .85rem; color: var(--color-text); padding-left: 18px; }
+    .detail-list li { margin-bottom: 3px; }
+
+    /* Photo gallery inside accordion */
+    .gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; margin-top: 6px; }
+    .gallery-item { position: relative; }
+    .gallery-item img {
+      width: 100%;
+      aspect-ratio: 4/3;
+      object-fit: cover;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: opacity .15s;
+    }
+    .gallery-item img:hover { opacity: .85; }
+    .gallery-caption { font-size: .72rem; color: var(--color-text-muted); margin-top: 3px; }
+    .gallery-placeholder {
+      width: 100%;
+      aspect-ratio: 4/3;
+      background: linear-gradient(135deg, #e8e0d4 0%, #d4c9bc 100%);
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: .72rem;
+      color: var(--color-text-muted);
+    }
+
+    /* ========================================================
+       ROUTES SECTION
+       ======================================================== */
+    #routes-list { display: flex; flex-direction: column; gap: 14px; }
+    .route-card {
+      background: var(--color-surface);
+      border: 1.5px solid var(--color-border);
+      border-radius: var(--radius-card);
+      padding: 14px 16px;
+    }
+    .route-name { font-size: 1rem; font-weight: 700; color: var(--color-primary); margin-bottom: 4px; }
+    .route-desc { font-size: .875rem; color: var(--color-text-muted); margin-bottom: 10px; }
+    .route-stops { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; align-items: center; }
+    .route-stop-chip {
+      font-size: .78rem;
+      background: var(--color-tag-bg);
+      color: var(--color-tag-text);
+      border-radius: 12px;
+      padding: 3px 10px;
+      font-weight: 600;
+    }
+    .route-stop-arrow { font-size: .75rem; color: var(--color-text-muted); }
+
+    /* ========================================================
+       LIGHTBOX
+       ======================================================== */
+    #lightbox {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.88);
+      z-index: 9999;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 12px;
+      padding: 20px;
+    }
+    #lightbox.open { display: flex; }
+    #lightbox-img {
+      max-width: 100%;
+      max-height: 80vh;
+      border-radius: 8px;
+      object-fit: contain;
+    }
+    #lightbox-caption { color: #eee; font-size: .9rem; text-align: center; }
+    #lightbox-close {
+      position: absolute;
+      top: 16px;
+      right: 20px;
+      background: none;
+      border: none;
+      color: #fff;
+      font-size: 2rem;
+      line-height: 1;
+      cursor: pointer;
+    }
+
+    /* ========================================================
+       FOOTER
+       ======================================================== */
+    #site-footer {
+      background: var(--color-primary);
+      color: rgba(255,255,255,.7);
+      font-size: .8rem;
+      padding: 16px;
+      text-align: center;
+    }
+    #site-footer a { color: rgba(255,255,255,.85); }
+
+    /* ========================================================
+       UTILITY
+       ======================================================== */
+    .visually-hidden {
+      position: absolute; width: 1px; height: 1px;
+      margin: -1px; padding: 0; overflow: hidden;
+      clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+    }
+    .no-results {
+      font-size: .9rem;
+      color: var(--color-text-muted);
+      padding: 20px 0;
+      text-align: center;
+    }
+
+  </style>
+</head>
+<body>
+
+<!-- ============================================================
+     HEADER — populated from data.area
+     ============================================================ -->
+<header id="site-header" role="banner">
+  <div class="container">
+    <h1 id="header-title">Loading…</h1>
+    <p  id="header-subtitle"></p>
+    <p  id="header-intro"></p>
+  </div>
+</header>
+
+<!-- ============================================================
+     MAP
+     ============================================================ -->
+<section id="map-section" aria-label="Interactive map">
+  <div id="map" role="application" aria-label="Map"></div>
+</section>
+
+<!-- Map controls -->
+<div id="map-controls" role="toolbar" aria-label="Map controls">
+  <div class="container">
+    <button id="btn-locate" class="btn btn-primary" type="button">
+      📍 Use My Location
+    </button>
+    <button id="btn-reset-map" class="btn" type="button">
+      🗺 Reset Map
+    </button>
+    <button id="btn-show-all" class="btn" type="button">
+      Show All Places
+    </button>
+    <span id="location-status" role="status" aria-live="polite"></span>
+  </div>
+</div>
+
+<!-- ============================================================
+     FILTER CHIPS — populated from data categories
+     ============================================================ -->
+<div id="filters-section" role="navigation" aria-label="Filter by category">
+  <div class="container">
+    <span class="filter-label" id="filters-label">Filter:</span>
+    <div id="filter-chips" role="group" aria-labelledby="filters-label"></div>
+    <button id="btn-clear-filters" class="btn btn-sm" type="button" style="display:none">
+      ✕ Clear
+    </button>
+  </div>
+</div>
+
+<!-- ============================================================
+     MAIN CONTENT
+     ============================================================ -->
+<main id="main-content">
+  <div class="container">
+
+    <!-- Places section -->
+    <section aria-labelledby="places-heading">
+      <div class="section-heading">
+        <h2 id="places-heading">Places</h2>
+        <span id="places-count" style="font-size:.82rem;font-weight:400;color:var(--color-text-muted)"></span>
+      </div>
+      <div id="places-grid" aria-live="polite" aria-relevant="additions removals"></div>
+    </section>
+
+    <!-- Routes section -->
+    <section aria-labelledby="routes-heading">
+      <div class="section-heading">
+        <h2 id="routes-heading">Walking Routes</h2>
+      </div>
+      <div id="routes-list"></div>
+    </section>
+
+  </div>
+</main>
+
+<!-- ============================================================
+     LIGHTBOX
+     ============================================================ -->
+<div id="lightbox" role="dialog" aria-modal="true" aria-label="Image viewer">
+  <button id="lightbox-close" aria-label="Close image viewer">×</button>
+  <img id="lightbox-img" src="" alt="" />
+  <p id="lightbox-caption"></p>
+</div>
+
+<!-- ============================================================
+     FOOTER
+     ============================================================ -->
+<footer id="site-footer">
+  <p>Map data © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors.
+     Powered by <a href="https://leafletjs.com" target="_blank" rel="noopener">Leaflet</a>.</p>
+</footer>
+
+<!-- ============================================================
+     Leaflet JS (CDN)
+     ============================================================ -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV/XN/WLEo="
+        crossorigin="anonymous"></script>
+
+<!-- ============================================================
+     ██████████████████████████████████████████████████████████
+     BEGIN DATA ─ Replace this entire object for a new location
+     ██████████████████████████████████████████████████████████
+
+     SCHEMA (all top-level keys described below):
+
+     area        {object}  — map/page metadata
+       .id         string   required  URL-safe identifier
+       .title      string   required  Page / header title
+       .subtitle   string   optional  One-line description
+       .intro      string   optional  Short introductory paragraph
+       .center     {lat,lng} required  Default map center
+       .zoom       number   required  Default Leaflet zoom level
+
+     places      {array}   — one entry per location
+       .id         string   required  URL-safe, used for anchor & route refs
+       .name       string   required
+       .lat        number   required
+       .lng        number   required
+       .address    string   optional  Human-readable street address
+       .mapQuery   string   optional  Preferred Google Maps search text
+       .categories [string] optional  Array of category strings
+       .shortDescription  string optional  1–2 sentence card blurb
+       .longDescription   string optional  Full paragraph for accordion
+       .historicalContext string optional  Historical/cultural background
+       .whyVisit   string   optional  Why a visitor should care
+       .whatToNotice [string] optional  Bullet list of things to observe
+       .tips       [string] optional  Practical advice bullets
+       .duration   string   optional  e.g. "10–20 min"
+       .bestFor    string   optional  e.g. "history and orientation"
+       .images     [{src,alt,caption}] optional  Photo gallery
+         .src      string   required in image object  Path or URL
+         .alt      string   required in image object  Alt text
+         .caption  string   optional in image object
+
+     routes      {array}   — walking route suggestions
+       .id         string   required
+       .name       string   required
+       .description string  optional
+       .placeIds   [string] required  Ordered array of place .id values
+
+     categories  {array}   optional  Override auto-derived category list
+       Each entry: { "id": "history", "label": "History" }
+     ============================================================ -->
+<script id="neighborhood-data" type="application/json">
+{
+  "area": {
+    "id": "french-quarter",
+    "title": "French Quarter Highlights",
+    "subtitle": "Self-guided explorer · New Orleans, Louisiana",
+    "intro": "The French Quarter, founded in 1718, is the oldest neighborhood in New Orleans and the cultural heart of the city. Wander its narrow streets past wrought-iron balconies, Spanish Creole architecture rebuilt after the great fires of the 1790s, legendary music venues, and one of America's great public squares.",
+    "center": { "lat": 29.9574, "lng": -90.0620 },
+    "zoom": 16
+  },
+  "categories": [
+    { "id": "history",      "label": "History" },
+    { "id": "architecture", "label": "Architecture" },
+    { "id": "food",         "label": "Food" },
+    { "id": "music",        "label": "Music" },
+    { "id": "views",        "label": "Views" },
+    { "id": "walking",      "label": "Walking" },
+    { "id": "culture",      "label": "Culture" },
+    { "id": "shopping",     "label": "Shopping" }
+  ],
+  "places": [
+    {
+      "id": "jackson-square",
+      "name": "Jackson Square",
+      "lat": 29.9575,
+      "lng": -90.0622,
+      "address": "700 Decatur St, New Orleans, LA 70116",
+      "mapQuery": "Jackson Square New Orleans",
+      "categories": ["history", "architecture", "walking", "views"],
+      "shortDescription": "The symbolic heart of the French Quarter — a grand public square flanked by the St. Louis Cathedral and 18th-century Pontalba buildings.",
+      "longDescription": "Jackson Square is the historic center of New Orleans, originally laid out in 1721 as the Place d'Armes. Today it is a lively gathering place ringed by artists, tarot readers, street musicians, and one of the most photographed vistas in America. The equestrian statue of Andrew Jackson at its center was added in 1856.",
+      "historicalContext": "The square served as the site of the Louisiana Purchase transfer ceremony in 1803, when the territory formally passed from France to the United States. It has witnessed every era of New Orleans history.",
+      "whyVisit": "It's the best single orientation point in the Quarter — the cathedral, the river, the artists, and the architecture all converge here. Arrive early for the quietest experience.",
+      "whatToNotice": [
+        "The St. Louis Cathedral framed perfectly behind the Jackson statue",
+        "Pontalba Buildings on either side — among the oldest apartment buildings in the U.S.",
+        "Street artists and palmists set up along the iron fence most mornings",
+        "The slight rise toward the levee — New Orleans sits in a bowl"
+      ],
+      "tips": [
+        "Best light for photos: early morning or golden hour before sunset",
+        "The square itself is gated and closes at night",
+        "Benches along the outside fence are always open"
+      ],
+      "duration": "15–30 min",
+      "bestFor": "orientation and history",
+      "images": [
+        {
+          "src": "images/jackson-square.jpg",
+          "alt": "Jackson Square with St. Louis Cathedral in the background",
+          "caption": "Jackson Square — the heart of the French Quarter"
+        }
+      ]
+    },
+    {
+      "id": "st-louis-cathedral",
+      "name": "St. Louis Cathedral",
+      "lat": 29.9579,
+      "lng": -90.0630,
+      "address": "615 Pere Antoine Alley, New Orleans, LA 70116",
+      "mapQuery": "St. Louis Cathedral New Orleans",
+      "categories": ["history", "architecture", "culture"],
+      "shortDescription": "America's oldest continuously active Roman Catholic cathedral, rebuilt in 1794 and dominating the Jackson Square skyline.",
+      "longDescription": "The current building, dedicated in 1794 and renovated in 1851, is the third church on this site since 1718. Its three distinctive steeples are one of the most iconic images in New Orleans. The interior features stunning frescoes and a peaceful atmosphere even on busy days.",
+      "historicalContext": "The first cathedral was built by French colonists in 1718, the same year New Orleans was founded. The city has grown up around this spiritual anchor for more than three centuries. It was designated a minor basilica in 1964.",
+      "whyVisit": "Free to enter and genuinely beautiful. The contrast between the hustle outside and the quiet within is striking. The architecture tells the story of three hundred years of New Orleans.",
+      "whatToNotice": [
+        "The three-tiered steeples visible from the Mississippi",
+        "Painted ceiling murals depicting the life of St. Louis",
+        "The organ, one of the oldest in active use in the country",
+        "St. Anthony's Garden behind the cathedral — a shaded refuge"
+      ],
+      "tips": [
+        "Free entry during public hours — check current schedule",
+        "Masses are held regularly; be respectful of services in progress",
+        "The garden behind the cathedral (Pere Antoine Alley) is quiet and worth seeking out"
+      ],
+      "duration": "20–40 min",
+      "bestFor": "architecture and quiet reflection",
+      "images": [
+        {
+          "src": "images/st-louis-cathedral.jpg",
+          "alt": "Facade of St. Louis Cathedral with white steeples",
+          "caption": "St. Louis Cathedral, founded 1718"
+        }
+      ]
+    },
+    {
+      "id": "cafe-du-monde",
+      "name": "Café du Monde",
+      "lat": 29.9568,
+      "lng": -90.0613,
+      "address": "800 Decatur St, New Orleans, LA 70116",
+      "mapQuery": "Cafe du Monde New Orleans",
+      "categories": ["food", "history", "culture"],
+      "shortDescription": "The legendary open-air coffee stand serving beignets and café au lait since 1862 — a New Orleans essential.",
+      "longDescription": "Café du Monde has operated nearly continuously since 1862, serving the same menu of chicory coffee, café au lait, and beignets (square fried doughnuts blanketed in powdered sugar) every single day. The green-and-white awnings are as much a part of the French Quarter as the cathedral itself.",
+      "historicalContext": "The stand occupies a corner of the French Market that has been a gathering place since the city's earliest days. Chicory coffee was popularized in New Orleans during the Civil War when coffee was scarce, and the tradition persisted because locals simply loved it.",
+      "whyVisit": "Whether or not you have a sweet tooth, the beignets and strong café au lait are a genuine New Orleans ritual. Watch out for the powdered sugar — it ends up everywhere.",
+      "whatToNotice": [
+        "The powdered sugar cloud that forms when beignets arrive at the table",
+        "The mix of tourists, locals, and musicians who all end up here",
+        "The open-air setup — always breezy, always lively",
+        "The view across Decatur Street toward Jackson Square"
+      ],
+      "tips": [
+        "Lines can be long on weekend mornings — weekday afternoons are calmer",
+        "Cash historically preferred; check current payment options",
+        "Wear something you don't mind getting powdered sugar on",
+        "Seating is first-come, first-served"
+      ],
+      "duration": "20–45 min",
+      "bestFor": "food and a classic New Orleans moment",
+      "images": [
+        {
+          "src": "images/cafe-du-monde.jpg",
+          "alt": "Beignets dusted with powdered sugar on a plate at Café du Monde",
+          "caption": "Beignets and café au lait — the classic order"
+        }
+      ]
+    },
+    {
+      "id": "french-market",
+      "name": "French Market",
+      "lat": 29.9551,
+      "lng": -90.0591,
+      "address": "1008 N Peters St, New Orleans, LA 70116",
+      "mapQuery": "French Market New Orleans",
+      "categories": ["history", "shopping", "food", "walking"],
+      "shortDescription": "One of the oldest public markets in the U.S., stretching along the riverfront with local produce, crafts, food vendors, and flea market stalls.",
+      "longDescription": "The French Market traces its roots to a Native American trading post used long before European settlement. Today the covered market stretches several blocks along Decatur Street, blending a produce and specialty food hall with a sprawling flea and artisan market. It's a lively, unpretentious place.",
+      "historicalContext": "Established as an official market in 1791 on the site of even earlier Choctaw trading grounds, the French Market is the oldest continuously operating public market in the country. It has burned, flooded, and been rebuilt multiple times.",
+      "whyVisit": "A genuinely local experience beyond the tourist polish of the immediate Quarter. Good for snacks, locally made goods, and people-watching.",
+      "whatToNotice": [
+        "The historic covered market sheds — note the cast-iron columns",
+        "Local praline vendors and their caramelized pecan candy",
+        "The flea market section is surprisingly large",
+        "Street food options from multiple vendors"
+      ],
+      "tips": [
+        "Stalls are typically open daily; hours vary by vendor",
+        "Bartering is not the norm, but friendly conversation with vendors is",
+        "The covered section stays cool even on hot days"
+      ],
+      "duration": "30–60 min",
+      "bestFor": "local shopping and snacks",
+      "images": [
+        {
+          "src": "images/french-market.jpg",
+          "alt": "Covered stalls of the French Market along the riverfront",
+          "caption": "The French Market — in continuous operation since 1791"
+        }
+      ]
+    },
+    {
+      "id": "royal-street",
+      "name": "Royal Street",
+      "lat": 29.9590,
+      "lng": -90.0637,
+      "address": "Royal St, New Orleans, LA 70116",
+      "mapQuery": "Royal Street French Quarter New Orleans",
+      "categories": ["architecture", "shopping", "walking", "culture"],
+      "shortDescription": "The most elegant street in the French Quarter — lined with antique galleries, art dealers, and beautiful wrought-iron balconies.",
+      "longDescription": "Royal Street is the Quarter's antique and art corridor, and arguably its most visually stunning block for Creole architecture. The street closes to traffic on weekend afternoons, turning into a pedestrian promenade where street musicians fill the air between the ornate buildings.",
+      "historicalContext": "Named after the French Royal family, Royal Street was the commercial and financial heart of colonial New Orleans. Many of the buildings date to the early 19th century following the great fires of 1788 and 1794, which ironically gave the Quarter much of its current Spanish Creole character.",
+      "whyVisit": "The best street for architecture lovers. Even window shopping feels refined. Weekend afternoons are magical when it closes to cars.",
+      "whatToNotice": [
+        "The elaborate cast-iron balcony grillwork — each building is different",
+        "The Cornstalk Hotel fence — one of the most photographed cast-iron pieces in the city",
+        "Art galleries mixed in among antique dealers",
+        "The slight curve of the street following the original riverbank"
+      ],
+      "tips": [
+        "Royal Street closes to traffic from roughly 400-block to 700-block on weekend afternoons",
+        "Walk both sides of the street — each has its own character",
+        "Antique shops are generally open Tue–Sun; Monday can be quiet"
+      ],
+      "duration": "30–90 min",
+      "bestFor": "architecture and window shopping",
+      "images": [
+        {
+          "src": "images/royal-street.jpg",
+          "alt": "Ornate cast-iron balconies on Royal Street in the French Quarter",
+          "caption": "Royal Street — the Quarter's antique and art corridor"
+        }
+      ]
+    },
+    {
+      "id": "bourbon-street",
+      "name": "Bourbon Street",
+      "lat": 29.9576,
+      "lng": -90.0654,
+      "address": "Bourbon St, New Orleans, LA 70116",
+      "mapQuery": "Bourbon Street New Orleans",
+      "categories": ["music", "culture", "walking"],
+      "shortDescription": "The world-famous (and famously loud) entertainment corridor of the French Quarter — neon lights, live music, and open-container bars.",
+      "longDescription": "Bourbon Street runs the full length of the French Quarter from Canal Street to Esplanade Avenue. The lower blocks near Canal are the tourist-party zone; walk further up toward Esplanade and the street quiets into authentic Creole residential blocks. The street is a pedestrian zone for several blocks from around dusk onward.",
+      "historicalContext": "Named for the French Royal House of Bourbon, not bourbon whiskey. Ironically, it became a jazz street and then a tourist bar corridor long after the name was set. The history of jazz in New Orleans is more faithfully told on Frenchmen Street in the Marigny, but Bourbon Street's energy is genuinely part of the city's mythology.",
+      "whyVisit": "Even if rowdy nightlife isn't your scene, a daytime walk down Bourbon Street is a cultural artifact worth experiencing. The street is quieter and more interesting before noon.",
+      "whatToNotice": [
+        "The contrast between the upper and lower blocks — night and day difference",
+        "Open-container laws allow you to carry drinks on the street",
+        "Centuries-old buildings housing modern bars — look up, not just in",
+        "The balconies on the upper stories — many are original"
+      ],
+      "tips": [
+        "Visit during the day first to appreciate the architecture without the crowds",
+        "The 900 and 1000 blocks are residential and much more peaceful",
+        "Avoid the very cheapest drinks — local bars a block off Bourbon usually have better prices"
+      ],
+      "duration": "15–60 min",
+      "bestFor": "nightlife and cultural spectacle",
+      "images": [
+        {
+          "src": "images/bourbon-street.jpg",
+          "alt": "Neon-lit Bourbon Street at night with crowds",
+          "caption": "Bourbon Street — 24-hour entertainment corridor"
+        }
+      ]
+    },
+    {
+      "id": "preservation-hall",
+      "name": "Preservation Hall",
+      "lat": 29.9580,
+      "lng": -90.0646,
+      "address": "726 St Peter St, New Orleans, LA 70116",
+      "mapQuery": "Preservation Hall New Orleans",
+      "categories": ["music", "history", "culture"],
+      "shortDescription": "The legendary jazz venue dedicated to preserving traditional New Orleans jazz — intimate, authentic, and unmissable.",
+      "longDescription": "Preservation Hall was founded in 1961 to preserve and perpetuate traditional New Orleans jazz at a time when the art form was in danger of being forgotten. The hall is deliberately rustic — limited seating, no bar, and the music front and center. The Preservation Hall Jazz Band plays multiple sets nightly.",
+      "historicalContext": "In the late 1950s, jazz entrepreneur Allan Jaffe began hosting informal sessions in this building to keep elder New Orleans musicians performing and employed. The hall has hosted some of the most important figures in traditional jazz and continues to feature multigenerational bands.",
+      "whyVisit": "One of the most authentic music experiences in New Orleans. The sound, the age of the building, and the musicians' connection to tradition create something genuinely rare.",
+      "whatToNotice": [
+        "The deliberately humble interior — this was an intentional choice",
+        "The age range of performers — tradition being passed between generations",
+        "The line outside before shows — arrive 30–45 minutes early for good standing spots",
+        "The acoustics of the small room"
+      ],
+      "tips": [
+        "Shows run multiple times nightly — check their website for current schedule",
+        "Lines form outside; there's limited bench seating and standing room",
+        "No drinks served inside — enjoy a cocktail nearby before or after",
+        "The $20–25 door fee is well worth it for a short set"
+      ],
+      "duration": "45–60 min per show",
+      "bestFor": "traditional jazz and authentic New Orleans music",
+      "images": [
+        {
+          "src": "images/preservation-hall.jpg",
+          "alt": "Exterior of Preservation Hall with small sign on St. Peter Street",
+          "caption": "Preservation Hall — founded 1961 to preserve traditional jazz"
+        }
+      ]
+    },
+    {
+      "id": "historic-new-orleans-collection",
+      "name": "Historic New Orleans Collection",
+      "lat": 29.9582,
+      "lng": -90.0636,
+      "address": "533 Royal St, New Orleans, LA 70130",
+      "mapQuery": "Historic New Orleans Collection 533 Royal St",
+      "categories": ["history", "culture", "architecture"],
+      "shortDescription": "A research center and museum complex on Royal Street preserving the history of New Orleans through documents, maps, photographs, and artifacts.",
+      "longDescription": "The Historic New Orleans Collection (THNOC) occupies a complex of historic buildings on Royal Street, including the 18th-century Merieult House. Its galleries hold rotating exhibitions on New Orleans history, while its research center contains one of the most important archives of Louisiana history in existence. Entry to the main galleries is free.",
+      "historicalContext": "Founded in 1974 by General L. Kemper Williams and his wife Leila Moore Williams, THNOC began as a private collection and grew into one of the foremost centers for New Orleans historical research. The Williams Research Center on Chartres Street is a separate satellite facility.",
+      "whyVisit": "Free galleries, world-class historical content, and a beautiful building complex. Essential for anyone who wants to understand the city beyond the surface.",
+      "whatToNotice": [
+        "The courtyard between the buildings — a hidden gem of the Quarter",
+        "Maps and aerial photographs showing how the city has changed",
+        "The architecture of the Merieult House itself"
+      ],
+      "tips": [
+        "Free gallery admission — a genuine bargain",
+        "Guided tours of the historic buildings are offered at a small fee",
+        "Check their website for current exhibition schedule",
+        "The bookshop carries excellent Louisiana history titles"
+      ],
+      "duration": "30–90 min",
+      "bestFor": "history and local archives",
+      "images": [
+        {
+          "src": "images/thnoc.jpg",
+          "alt": "Courtyard of the Historic New Orleans Collection on Royal Street",
+          "caption": "Historic New Orleans Collection — free galleries on Royal Street"
+        }
+      ]
+    },
+    {
+      "id": "jean-lafitte-visitor-center",
+      "name": "Jean Lafitte NHP Visitor Center",
+      "lat": 29.9554,
+      "lng": -90.0632,
+      "address": "419 Decatur St, New Orleans, LA 70130",
+      "mapQuery": "Jean Lafitte National Historical Park Visitor Center New Orleans",
+      "categories": ["history", "culture", "walking"],
+      "shortDescription": "Free National Park Service visitor center with exhibits on New Orleans history, culture, and ecology — an excellent and overlooked starting point.",
+      "longDescription": "The Jean Lafitte National Historical Park and Preserve's French Quarter Visitor Center is run by the National Park Service and offers free entry. It hosts well-designed exhibits on the history, music, food, and ecology of New Orleans and Louisiana. Ranger-led walking tours depart from here regularly.",
+      "historicalContext": "Jean Lafitte National Historical Park was established in 1978 to preserve and interpret the history and culture of the Mississippi Delta region. The French Quarter Visitor Center is the urban anchor of a park that includes battlefields, bayous, and rural cultural sites across Louisiana.",
+      "whyVisit": "Consistently excellent and overlooked — free NPS rangers genuinely know the city and the walking tours are among the best in the Quarter.",
+      "whatToNotice": [
+        "The free cultural exhibits — better than many paid attractions",
+        "Rangers available to answer questions and give recommendations",
+        "The schedule for free ranger-led walking tours"
+      ],
+      "tips": [
+        "Completely free — no donation expected",
+        "Check the tour schedule at the desk or on the NPS website",
+        "Open daily; closes earlier than most Quarter attractions",
+        "Good restrooms and air conditioning — a practical stop too"
+      ],
+      "duration": "20–45 min",
+      "bestFor": "orientation and free cultural exhibits",
+      "images": [
+        {
+          "src": "images/jean-lafitte-visitor-center.jpg",
+          "alt": "Entrance to the Jean Lafitte National Historical Park visitor center",
+          "caption": "Jean Lafitte NHP Visitor Center — free and excellent"
+        }
+      ]
+    },
+    {
+      "id": "moon-walk-riverfront",
+      "name": "Moon Walk & Mississippi Riverfront",
+      "lat": 29.9559,
+      "lng": -90.0600,
+      "address": "1 Mississippi River, New Orleans, LA 70116",
+      "mapQuery": "Moon Walk New Orleans Mississippi Riverfront",
+      "categories": ["views", "walking", "history"],
+      "shortDescription": "The public riverfront promenade behind Jackson Square — one of the best spots to see the Mississippi River and watch working cargo ships pass.",
+      "longDescription": "The Moon Walk is the elevated pedestrian boardwalk running along the top of the Mississippi River levee behind the French Quarter. Named after former Mayor Moon Landrieu, it offers one of the few places in New Orleans where the public can stand at the edge of the Mississippi and watch the river flow. The river here is surprisingly high — New Orleans sits below river level.",
+      "historicalContext": "New Orleans exists because of the Mississippi River — the city was founded at this bend specifically because it was the highest ground near the river's mouth. The levee system that holds the river back is one of the most complex in the world. Looking out from the Moon Walk, you can see the river actually runs above street level behind you.",
+      "whyVisit": "A genuinely awe-inspiring moment when you realize the river is above you. The scale of the Mississippi — and of the ships that navigate it — is hard to grasp until you see it.",
+      "whatToNotice": [
+        "The river is above street level — the levee is what separates you from flooding",
+        "Massive cargo ships and tankers navigating the bend",
+        "The Algiers neighborhood on the far bank",
+        "The Crescent City Connection bridge to the west",
+        "The river current — it moves faster than it looks"
+      ],
+      "tips": [
+        "Early morning is ideal — quiet, mist on the river, no crowds",
+        "Sunset from the levee is spectacular, especially looking toward the bridge",
+        "The Steamboat Natchez departs from a dock nearby if you want a river cruise",
+        "Benches are available along the walk"
+      ],
+      "duration": "15–30 min",
+      "bestFor": "views and appreciating the river",
+      "images": [
+        {
+          "src": "images/moon-walk.jpg",
+          "alt": "View of the Mississippi River from the Moon Walk levee",
+          "caption": "Moon Walk — the Mississippi runs above New Orleans street level"
+        }
+      ]
+    }
+  ],
+  "routes": [
+    {
+      "id": "quick-highlights",
+      "name": "Quick 45-Minute Highlights",
+      "description": "A short walk covering the essential landmarks clustered around Jackson Square. Good for a first visit or a time-limited stop.",
+      "placeIds": [
+        "jackson-square",
+        "st-louis-cathedral",
+        "cafe-du-monde",
+        "moon-walk-riverfront"
+      ]
+    },
+    {
+      "id": "full-morning-walk",
+      "name": "Full Morning Walk (2–3 hours)",
+      "description": "A leisurely exploration of the entire French Quarter, combining the iconic sights with quieter cultural stops. Best started around 9 AM.",
+      "placeIds": [
+        "jean-lafitte-visitor-center",
+        "jackson-square",
+        "st-louis-cathedral",
+        "moon-walk-riverfront",
+        "cafe-du-monde",
+        "french-market",
+        "historic-new-orleans-collection",
+        "royal-street",
+        "preservation-hall"
+      ]
+    },
+    {
+      "id": "evening-culture",
+      "name": "Evening Culture & Music",
+      "description": "Start with some history in the afternoon, then end the night with authentic New Orleans jazz. Pair with dinner somewhere along the way.",
+      "placeIds": [
+        "royal-street",
+        "historic-new-orleans-collection",
+        "bourbon-street",
+        "preservation-hall"
+      ]
+    }
+  ]
+}
+</script>
+<!-- END DATA ─ Everything above this line is the swappable dataset -->
+
+<!-- ============================================================
+     APPLICATION JAVASCRIPT
+     ============================================================ -->
+<script>
+/* ============================================================
+   NAMESPACE & STATE
+   ============================================================ */
+const App = (() => {
+
+  /* ---------- State ---------- */
+  let state = {
+    data:           null,   // parsed neighborhood data
+    map:            null,   // Leaflet map instance
+    markers:        {},     // placeId -> Leaflet marker
+    userMarker:     null,   // user location marker
+    userCircle:     null,   // user accuracy circle
+    userLatLng:     null,   // [lat, lng] if known
+    activeFilters:  new Set(),
+    defaultCenter:  null,
+    defaultZoom:    null,
+  };
+
+  /* ============================================================
+     HELPERS
+     ============================================================ */
+
+  /**
+   * Build a Google Maps search URL for a place.
+   * Precedence: mapQuery > address > "lat,lng"
+   * Returns null if no usable query is available.
+   */
+  function buildGoogleMapsUrl(place) {
+    const query =
+      place.mapQuery  ? place.mapQuery :
+      place.address   ? place.address  :
+      (place.lat != null && place.lng != null) ? `${place.lat},${place.lng}` :
+      null;
+    if (!query) return null;
+    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
+  }
+
+  /** Haversine distance in meters between two {lat,lng} points. */
+  function distanceMeters(a, b) {
+    const R = 6371000;
+    const toRad = d => d * Math.PI / 180;
+    const dLat = toRad(b.lat - a.lat);
+    const dLng = toRad(b.lng - a.lng);
+    const sinA = Math.sin(dLat / 2);
+    const sinB = Math.sin(dLng / 2);
+    const c = sinA * sinA + Math.cos(toRad(a.lat)) * Math.cos(toRad(b.lat)) * sinB * sinB;
+    return R * 2 * Math.atan2(Math.sqrt(c), Math.sqrt(1 - c));
+  }
+
+  /** Format meters as a readable string. */
+  function formatDistance(meters) {
+    if (meters < 1000) return `${Math.round(meters)} m`;
+    return `${(meters / 1000).toFixed(1)} km`;
+  }
+
+  /** Escape HTML to safely insert user-supplied strings. */
+  function esc(str) {
+    if (!str) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  /** Return a place by id. */
+  function getPlace(id) {
+    return state.data.places.find(p => p.id === id);
+  }
+
+  /* ============================================================
+     DATA LOADING
+     ============================================================ */
+  function loadData() {
+    const el = document.getElementById('neighborhood-data');
+    if (!el) throw new Error('neighborhood-data script element not found');
+    try {
+      return JSON.parse(el.textContent);
+    } catch (e) {
+      throw new Error('Failed to parse neighborhood data JSON: ' + e.message);
+    }
+  }
+
+  /* ============================================================
+     HEADER
+     ============================================================ */
+  function renderHeader(area) {
+    document.getElementById('page-title').textContent = area.title + ' — Neighborhood Explorer';
+    const desc = document.getElementById('page-description');
+    if (desc && area.subtitle) desc.setAttribute('content', area.subtitle);
+
+    document.getElementById('header-title').textContent    = area.title    || '';
+    document.getElementById('header-subtitle').textContent = area.subtitle || '';
+    document.getElementById('header-intro').textContent    = area.intro    || '';
+  }
+
+  /* ============================================================
+     MAP
+     ============================================================ */
+  function initMap(area) {
+    const center = [area.center.lat, area.center.lng];
+    state.defaultCenter = center;
+    state.defaultZoom   = area.zoom;
+
+    state.map = L.map('map', {
+      center: center,
+      zoom:   area.zoom,
+      zoomControl: true,
+    });
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+      maxZoom: 19,
+    }).addTo(state.map);
+  }
+
+  /** Build the HTML string for a Leaflet popup. */
+  function buildPopupHTML(place) {
+    const mapsUrl = buildGoogleMapsUrl(place);
+    const cats = (place.categories || []).map(c => `<span class="tag">${esc(c)}</span>`).join('');
+    const mapsLink = mapsUrl
+      ? `<a href="${esc(mapsUrl)}" target="_blank" rel="noopener" class="btn btn-sm" style="margin-top:6px;display:inline-block">Open in Google Maps ↗</a>`
+      : '';
+    const bestFor = place.bestFor ? `<div style="font-size:.78rem;color:#6b5e55;margin-top:4px">Best for: ${esc(place.bestFor)}</div>` : '';
+
+    return `
+      <div style="max-width:220px">
+        <strong style="font-size:.95rem;color:#4a3728">${esc(place.name)}</strong>
+        ${cats ? `<div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:4px">${cats}</div>` : ''}
+        <p style="font-size:.82rem;margin-top:5px;color:#2c2520">${esc(place.shortDescription || '')}</p>
+        ${bestFor}
+        ${mapsLink}
+        <button onclick="App.focusCard('${esc(place.id)}')"
+                style="margin-top:4px;font-size:.78rem;color:#b5622a;background:none;border:none;cursor:pointer;padding:0;text-decoration:underline">
+          See details ↓
+        </button>
+      </div>`;
+  }
+
+  function addMarkers(places) {
+    places.forEach(place => {
+      if (place.lat == null || place.lng == null) return;
+
+      const marker = L.marker([place.lat, place.lng], {
+        title: place.name,
+        alt:   place.name,
+        riseOnHover: true,
+      });
+
+      marker.bindPopup(buildPopupHTML(place), { maxWidth: 260 });
+      marker.addTo(state.map);
+      state.markers[place.id] = marker;
+
+      // Open popup when the card's map button is clicked (handled in focusMap)
+    });
+  }
+
+  /* ============================================================
+     GEOLOCATION
+     ============================================================ */
+  function setupLocation() {
+    const btn    = document.getElementById('btn-locate');
+    const status = document.getElementById('location-status');
+
+    btn.addEventListener('click', () => {
+      if (!navigator.geolocation) {
+        status.textContent = 'Geolocation is not supported by your browser.';
+        status.className   = 'error';
+        return;
+      }
+      status.textContent = '📡 Locating…';
+      status.className   = '';
+
+      navigator.geolocation.getCurrentPosition(
+        pos => onLocationSuccess(pos, status),
+        err => onLocationError(err, status),
+        { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 }
+      );
+    });
+  }
+
+  function onLocationSuccess(pos, status) {
+    const { latitude: lat, longitude: lng, accuracy } = pos.coords;
+    state.userLatLng = { lat, lng };
+
+    // Remove old markers
+    if (state.userMarker) state.map.removeLayer(state.userMarker);
+    if (state.userCircle) state.map.removeLayer(state.userCircle);
+
+    // User marker
+    state.userMarker = L.circleMarker([lat, lng], {
+      radius: 8,
+      fillColor: '#2a7ae2',
+      fillOpacity: 1,
+      color: '#fff',
+      weight: 2,
+    }).addTo(state.map).bindPopup('You are here');
+
+    // Accuracy circle
+    state.userCircle = L.circle([lat, lng], {
+      radius: accuracy,
+      color: '#2a7ae2',
+      fillColor: '#2a7ae2',
+      fillOpacity: 0.12,
+      weight: 1,
+    }).addTo(state.map);
+
+    // Fit map to include user location and all visible markers
+    const bounds = L.latLngBounds([[lat, lng]]);
+    Object.values(state.markers).forEach(m => bounds.extend(m.getLatLng()));
+    state.map.fitBounds(bounds.pad(0.1));
+
+    status.textContent = `📍 Location found (±${Math.round(accuracy)} m)`;
+    status.className   = 'success';
+
+    // Refresh cards to show distances
+    renderPlaces(state.data.places);
+    // Re-apply active filters
+    applyFilters();
+  }
+
+  function onLocationError(err, status) {
+    const msgs = {
+      1: 'Location access denied. Enable location permission and try again.',
+      2: 'Location unavailable. Check your connection and try again.',
+      3: 'Location request timed out. Please try again.',
+    };
+    status.textContent = msgs[err.code] || 'Location error. Please try again.';
+    status.className   = 'error';
+  }
+
+  /* ============================================================
+     FILTERS
+     ============================================================ */
+  function setupFilters(categories) {
+    const container = document.getElementById('filter-chips');
+    const clearBtn  = document.getElementById('btn-clear-filters');
+    container.innerHTML = '';
+
+    categories.forEach(cat => {
+      const btn = document.createElement('button');
+      btn.className    = 'filter-chip';
+      btn.type         = 'button';
+      btn.textContent  = cat.label;
+      btn.dataset.catId = cat.id;
+      btn.setAttribute('aria-pressed', 'false');
+
+      btn.addEventListener('click', () => {
+        const id = cat.id;
+        if (state.activeFilters.has(id)) {
+          state.activeFilters.delete(id);
+          btn.classList.remove('active');
+          btn.setAttribute('aria-pressed', 'false');
+        } else {
+          state.activeFilters.add(id);
+          btn.classList.add('active');
+          btn.setAttribute('aria-pressed', 'true');
+        }
+        clearBtn.style.display = state.activeFilters.size > 0 ? '' : 'none';
+        applyFilters();
+      });
+
+      container.appendChild(btn);
+    });
+
+    clearBtn.addEventListener('click', () => {
+      state.activeFilters.clear();
+      container.querySelectorAll('.filter-chip').forEach(b => {
+        b.classList.remove('active');
+        b.setAttribute('aria-pressed', 'false');
+      });
+      clearBtn.style.display = 'none';
+      applyFilters();
+    });
+  }
+
+  function applyFilters() {
+    const active   = state.activeFilters;
+    const grid     = document.getElementById('places-grid');
+    const cards    = grid.querySelectorAll('.place-card');
+    let   visible  = 0;
+
+    cards.forEach(card => {
+      const cats = (card.dataset.categories || '').split(',').filter(Boolean);
+      const show = active.size === 0 || cats.some(c => active.has(c));
+      card.classList.toggle('hidden', !show);
+      if (show) visible++;
+
+      // Sync marker visibility
+      const marker = state.markers[card.dataset.placeId];
+      if (marker) {
+        if (show) {
+          if (!state.map.hasLayer(marker)) marker.addTo(state.map);
+        } else {
+          if (state.map.hasLayer(marker)) state.map.removeLayer(marker);
+        }
+      }
+    });
+
+    updatePlacesCount(visible, state.data.places.length);
+
+    // No-results message
+    let noResults = grid.querySelector('.no-results');
+    if (visible === 0) {
+      if (!noResults) {
+        noResults = document.createElement('p');
+        noResults.className = 'no-results';
+        noResults.textContent = 'No places match the selected filters.';
+        grid.appendChild(noResults);
+      }
+    } else if (noResults) {
+      noResults.remove();
+    }
+  }
+
+  function updatePlacesCount(visible, total) {
+    const el = document.getElementById('places-count');
+    el.textContent = visible === total
+      ? `${total} places`
+      : `${visible} of ${total} places`;
+  }
+
+  /* ============================================================
+     PLACE CARDS
+     ============================================================ */
+  function renderPlaces(places) {
+    const grid = document.getElementById('places-grid');
+    grid.innerHTML = '';
+
+    places.forEach(place => {
+      const card = buildPlaceCard(place);
+      grid.appendChild(card);
+    });
+
+    updatePlacesCount(places.length, places.length);
+  }
+
+  function buildPlaceCard(place) {
+    const mapsUrl  = buildGoogleMapsUrl(place);
+    const cats     = place.categories || [];
+    const hasImage = place.images && place.images.length > 0;
+    const firstImg = hasImage ? place.images[0] : null;
+
+    // Distance (only if user location known)
+    let distHtml = '';
+    if (state.userLatLng && place.lat != null && place.lng != null) {
+      const d = distanceMeters(state.userLatLng, { lat: place.lat, lng: place.lng });
+      distHtml = `<span class="distance-badge">📍 ${formatDistance(d)}</span>`;
+    }
+
+    // Tags HTML
+    const tagsHtml = cats.map(c => `<span class="tag">${esc(c)}</span>`).join('');
+
+    // Meta (duration / bestFor)
+    let metaParts = [];
+    if (place.duration) metaParts.push(`⏱ ${esc(place.duration)}`);
+    if (place.bestFor)  metaParts.push(`✓ Best for: ${esc(place.bestFor)}`);
+    const metaHtml = metaParts.length
+      ? `<div class="place-card-meta">${metaParts.map(p => `<span>${p}</span>`).join('')}</div>`
+      : '';
+
+    // Image/thumb — the placeholder carries the alt text for screen readers when the image fails
+    let thumbHtml;
+    if (firstImg) {
+      // On error: hide the broken image and show a visible placeholder with accessible alt text
+      thumbHtml = `<img class="place-card-thumb" src="${esc(firstImg.src)}" alt="${esc(firstImg.alt)}" loading="lazy"
+                        onerror="this.style.display='none';this.nextElementSibling.removeAttribute('aria-hidden');this.nextElementSibling.style.display='flex'" />
+                   <div class="place-card-thumb-placeholder" aria-hidden="true" role="img" aria-label="${esc(firstImg.alt)}" style="display:none">No image available</div>`;
+    } else {
+      thumbHtml = `<div class="place-card-thumb-placeholder" aria-hidden="true">No image available</div>`;
+    }
+
+    // Google Maps link
+    const mapsLinkHtml = mapsUrl
+      ? `<a href="${esc(mapsUrl)}" target="_blank" rel="noopener" class="btn btn-sm">Google Maps ↗</a>`
+      : '';
+
+    // Accordion (detail section)
+    const accordionHtml = buildAccordionHTML(place);
+
+    // Full card HTML
+    const card = document.createElement('article');
+    card.className            = 'place-card';
+    card.id                   = `place-card-${esc(place.id)}`;
+    card.dataset.placeId      = place.id;
+    card.dataset.categories   = cats.join(',');
+    card.setAttribute('aria-label', place.name);
+
+    card.innerHTML = `
+      ${thumbHtml}
+      <div class="place-card-body">
+        <h3 class="place-card-title">${esc(place.name)}${distHtml}</h3>
+        <p class="place-card-desc">${esc(place.shortDescription || '')}</p>
+        ${tagsHtml ? `<div class="tag-list">${tagsHtml}</div>` : ''}
+        ${metaHtml}
+      </div>
+      ${accordionHtml}
+      <div class="place-card-footer">
+        <button class="btn btn-sm btn-primary" type="button"
+                onclick="App.focusMap('${esc(place.id)}')">
+          🗺 Show on map
+        </button>
+        ${mapsLinkHtml}
+      </div>
+    `;
+
+    return card;
+  }
+
+  function buildAccordionHTML(place) {
+    // Build each optional detail section
+    const sections = [];
+
+    if (place.longDescription) {
+      sections.push(`
+        <div class="detail-section">
+          <p class="detail-text">${esc(place.longDescription)}</p>
+        </div>`);
+    }
+    if (place.historicalContext) {
+      sections.push(`
+        <div class="detail-section">
+          <h4 class="detail-heading">Historical Context</h4>
+          <p class="detail-text">${esc(place.historicalContext)}</p>
+        </div>`);
+    }
+    if (place.whyVisit) {
+      sections.push(`
+        <div class="detail-section">
+          <h4 class="detail-heading">Why Visit</h4>
+          <p class="detail-text">${esc(place.whyVisit)}</p>
+        </div>`);
+    }
+    if (place.whatToNotice && place.whatToNotice.length) {
+      const items = place.whatToNotice.map(i => `<li>${esc(i)}</li>`).join('');
+      sections.push(`
+        <div class="detail-section">
+          <h4 class="detail-heading">What to Notice</h4>
+          <ul class="detail-list">${items}</ul>
+        </div>`);
+    }
+    if (place.tips && place.tips.length) {
+      const items = place.tips.map(i => `<li>${esc(i)}</li>`).join('');
+      sections.push(`
+        <div class="detail-section">
+          <h4 class="detail-heading">Practical Tips</h4>
+          <ul class="detail-list">${items}</ul>
+        </div>`);
+    }
+    if (place.images && place.images.length) {
+      const galleryItems = place.images.map(img => `
+        <div class="gallery-item" data-img-alt="${esc(img.alt)}">
+          <img src="${esc(img.src)}"
+               alt="${esc(img.alt)}"
+               loading="lazy"
+               onclick="App.openLightbox('${esc(img.src)}','${esc(img.alt)}','${esc(img.caption || '')}')"
+               onerror="App.handleGalleryImgError(this)" />
+          ${img.caption ? `<p class="gallery-caption">${esc(img.caption)}</p>` : ''}
+        </div>`).join('');
+      sections.push(`
+        <div class="detail-section">
+          <h4 class="detail-heading">Photos</h4>
+          <div class="gallery">${galleryItems}</div>
+        </div>`);
+    }
+
+    if (!sections.length) return '';
+
+    return `
+      <div class="accordion">
+        <button class="accordion-trigger" type="button"
+                aria-expanded="false"
+                aria-controls="accordion-panel-${esc(place.id)}"
+                onclick="App.toggleAccordion(this)">
+          <span>More details</span>
+          <em class="accordion-arrow" aria-hidden="true">▾</em>
+        </button>
+        <div class="accordion-panel" id="accordion-panel-${esc(place.id)}" role="region">
+          ${sections.join('')}
+        </div>
+      </div>`;
+  }
+
+  /* ============================================================
+     ROUTES
+     ============================================================ */
+  function renderRoutes(routes, places) {
+    const container = document.getElementById('routes-list');
+    container.innerHTML = '';
+
+    if (!routes || !routes.length) {
+      container.innerHTML = '<p class="no-results">No routes defined.</p>';
+      return;
+    }
+
+    routes.forEach(route => {
+      const stops = (route.placeIds || []).map(id => getPlace(id)).filter(Boolean);
+
+      // Build stops with arrows
+      const stopsHtml = stops.map((p, i) => {
+        const arrow = i < stops.length - 1
+          ? `<span class="route-stop-arrow">→</span>`
+          : '';
+        return `<span class="route-stop-chip">${esc(p.name)}</span>${arrow}`;
+      }).join('');
+
+      const card = document.createElement('div');
+      card.className = 'route-card';
+      card.innerHTML = `
+        <h3 class="route-name">${esc(route.name)}</h3>
+        ${route.description ? `<p class="route-desc">${esc(route.description)}</p>` : ''}
+        <div class="route-stops">${stopsHtml}</div>
+        <button class="btn btn-sm btn-primary" type="button"
+                onclick="App.fitRoute('${esc(route.id)}')">
+          Show route on map 🗺
+        </button>
+      `;
+      container.appendChild(card);
+    });
+  }
+
+  /* ============================================================
+     MAP ACTIONS (called from buttons/popups)
+     ============================================================ */
+
+  /** Focus the map on a place and open its marker popup. */
+  function focusMap(placeId) {
+    const marker = state.markers[placeId];
+    const place  = getPlace(placeId);
+    if (!place) return;
+    if (!marker || !state.map) {
+      // Map unavailable — just scroll to the card
+      focusCard(placeId);
+      return;
+    }
+    state.map.setView([place.lat, place.lng], Math.max(state.map.getZoom(), 17), { animate: true });
+    marker.openPopup();
+  }
+
+  /** Scroll to and highlight a card, and expand its accordion. */
+  function focusCard(placeId) {
+    const card = document.getElementById(`place-card-${placeId}`);
+    if (!card) return;
+    card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+    // Auto-expand accordion if collapsed
+    const trigger = card.querySelector('.accordion-trigger');
+    if (trigger && trigger.getAttribute('aria-expanded') === 'false') {
+      toggleAccordion(trigger);
+    }
+  }
+
+  /** Fit map to show all stops in a route. */
+  function fitRoute(routeId) {
+    if (!state.map) return;
+    const route = state.data.routes.find(r => r.id === routeId);
+    if (!route) return;
+
+    const latLngs = (route.placeIds || [])
+      .map(id => state.markers[id])
+      .filter(Boolean)
+      .map(m => m.getLatLng());
+
+    if (!latLngs.length) return;
+    state.map.fitBounds(L.latLngBounds(latLngs).pad(0.15), { animate: true });
+  }
+
+  /** Reset map to default center/zoom. */
+  function resetMap() {
+    if (!state.map) return;
+    state.map.setView(state.defaultCenter, state.defaultZoom, { animate: true });
+  }
+
+  /** Show all places (clear filters and reset map). */
+  function showAllPlaces() {
+    document.getElementById('btn-clear-filters').click();
+    resetMap();
+  }
+
+  /* ============================================================
+     ACCORDION TOGGLE
+     ============================================================ */
+  function toggleAccordion(trigger) {
+    const expanded = trigger.getAttribute('aria-expanded') === 'true';
+    const panelId  = trigger.getAttribute('aria-controls');
+    const panel    = document.getElementById(panelId);
+    if (!panel) return;
+
+    trigger.setAttribute('aria-expanded', String(!expanded));
+    panel.classList.toggle('open', !expanded);
+
+    const label = trigger.querySelector('span');
+    if (label) label.textContent = expanded ? 'More details' : 'Hide details';
+  }
+
+  /* ============================================================
+     LIGHTBOX
+     ============================================================ */
+  function openLightbox(src, alt, caption) {
+    const lb  = document.getElementById('lightbox');
+    const img = document.getElementById('lightbox-img');
+    const cap = document.getElementById('lightbox-caption');
+
+    img.src = src;
+    img.alt = alt || '';
+    cap.textContent = caption || '';
+    lb.classList.add('open');
+    document.body.style.overflow = 'hidden';
+    document.getElementById('lightbox-close').focus();
+  }
+
+  function closeLightbox() {
+    document.getElementById('lightbox').classList.remove('open');
+    document.getElementById('lightbox-img').src = '';
+    document.body.style.overflow = '';
+  }
+
+  /**
+   * Replace a failed gallery image with an accessible placeholder.
+   * Called from the gallery img onerror handler.
+   */
+  function handleGalleryImgError(imgEl) {
+    const parent  = imgEl.parentElement;
+    const altText = parent ? (parent.dataset.imgAlt || '') : '';
+    const placeholder = document.createElement('div');
+    placeholder.className = 'gallery-placeholder';
+    placeholder.setAttribute('role', 'img');
+    placeholder.setAttribute('aria-label', altText);
+    placeholder.textContent = 'No image';
+    // Remove broken image (and keep any sibling caption)
+    imgEl.replaceWith(placeholder);
+  }
+
+  function setupLightbox() {
+    document.getElementById('lightbox-close').addEventListener('click', closeLightbox);
+    document.getElementById('lightbox').addEventListener('click', e => {
+      if (e.target === e.currentTarget) closeLightbox();
+    });
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape') closeLightbox();
+    });
+  }
+
+  /* ============================================================
+     URL HASH DEEP LINKING
+     ============================================================ */
+  function handleHashNavigation() {
+    const hash = window.location.hash.slice(1); // remove #
+    if (!hash) return;
+    // Support both "#place-id" and "#place-card-place-id" forms
+    const placeId = hash.startsWith('place-card-') ? hash.slice('place-card-'.length) : hash;
+    const place   = getPlace(placeId);
+    if (!place) return;
+
+    setTimeout(() => {
+      focusMap(placeId);
+      focusCard(placeId);
+    }, 400); // slight delay to let map render
+  }
+
+  /* ============================================================
+     CONTROLS WIRING
+     ============================================================ */
+  function setupControls() {
+    document.getElementById('btn-reset-map').addEventListener('click', resetMap);
+    document.getElementById('btn-show-all').addEventListener('click', showAllPlaces);
+  }
+
+  /* ============================================================
+     DERIVE CATEGORIES from places if not explicitly provided
+     ============================================================ */
+  function deriveCategories(data) {
+    if (data.categories && data.categories.length) return data.categories;
+    const seen = new Set();
+    (data.places || []).forEach(p =>
+      (p.categories || []).forEach(c => seen.add(c))
+    );
+    return [...seen].sort().map(id => ({ id, label: id.charAt(0).toUpperCase() + id.slice(1) }));
+  }
+
+  /* ============================================================
+     INIT
+     ============================================================ */
+  function init() {
+    try {
+      state.data = loadData();
+    } catch (e) {
+      document.body.innerHTML = `<p style="padding:2rem;color:red;font-family:sans-serif">
+        <strong>Data error:</strong> ${e.message}</p>`;
+      return;
+    }
+
+    const { area, places, routes } = state.data;
+    const categories = deriveCategories(state.data);
+
+    // 1. Header
+    renderHeader(area);
+
+    // 2. Map (non-fatal — rest of page works without it)
+    try {
+      if (typeof L === 'undefined') throw new Error('Leaflet not loaded');
+      initMap(area);
+      addMarkers(places);
+    } catch (e) {
+      console.warn('Map unavailable:', e.message);
+      const mapEl = document.getElementById('map');
+      if (mapEl) {
+        mapEl.style.display = 'flex';
+        mapEl.style.alignItems = 'center';
+        mapEl.style.justifyContent = 'center';
+        mapEl.style.color = 'var(--color-text-muted)';
+        mapEl.style.fontSize = '.9rem';
+        mapEl.innerHTML = '<span>Map unavailable — check your connection</span>';
+      }
+      // Disable map-dependent buttons gracefully
+      ['btn-locate', 'btn-reset-map'].forEach(id => {
+        const btn = document.getElementById(id);
+        if (btn) { btn.disabled = true; btn.style.opacity = '.5'; }
+      });
+    }
+
+    // 3. Geolocation
+    setupLocation();
+
+    // 4. Filters
+    setupFilters(categories);
+
+    // 5. Place cards
+    renderPlaces(places);
+
+    // 6. Routes
+    renderRoutes(routes, places);
+
+    // 7. Lightbox
+    setupLightbox();
+
+    // 8. Utility controls
+    setupControls();
+
+    // 9. URL hash deep linking
+    handleHashNavigation();
+    window.addEventListener('hashchange', handleHashNavigation);
+  }
+
+  /* ============================================================
+     PUBLIC API (called from inline event handlers and popups)
+     ============================================================ */
+  return {
+    init,
+    focusMap,
+    focusCard,
+    fitRoute,
+    toggleAccordion,
+    openLightbox,
+    handleGalleryImgError,
+  };
+
+})();
+
+// Start the application once the DOM is ready
+document.addEventListener('DOMContentLoaded', App.init);
+</script>
+
+<!--
+  ============================================================
+  SCHEMA REFERENCE
+  ============================================================
+
+  TOP-LEVEL STRUCTURE
+  -------------------
+  {
+    "area":       { … }    Map metadata and page title info.
+    "categories": [ … ]    Optional explicit category list (auto-derived if omitted).
+    "places":     [ … ]    Array of place objects (markers, cards, accordions).
+    "routes":     [ … ]    Array of walking route objects.
+  }
+
+  area
+  ----
+  id        string   REQUIRED   URL-safe identifier for this neighborhood.
+  title     string   REQUIRED   Displayed as the page H1 and <title>.
+  subtitle  string   optional   One-line description shown below the title.
+  intro     string   optional   Short introductory paragraph in the header.
+  center    {lat,lng} REQUIRED  Default Leaflet map center coordinates.
+  zoom      number   REQUIRED   Default Leaflet zoom level (15–17 typical).
+
+  categories (array of objects, optional)
+  ----------------------------------------
+  id        string   REQUIRED in each entry   Used for filtering logic.
+  label     string   REQUIRED in each entry   Display name for filter chip.
+  (If omitted, categories are auto-derived from place.categories values.)
+
+  places (array of objects)
+  -------------------------
+  id                string   REQUIRED   URL-safe; used for anchors, routes, hash links.
+  name              string   REQUIRED   Display name.
+  lat               number   REQUIRED   Latitude for map marker.
+  lng               number   REQUIRED   Longitude for map marker.
+  address           string   optional   Street address used for Google Maps fallback.
+  mapQuery          string   optional   Preferred Google Maps search text (highest priority).
+  categories        [string] optional   Array of category id strings.
+  shortDescription  string   optional   1–2 sentence card summary.
+  longDescription   string   optional   Full paragraph for accordion expanded view.
+  historicalContext string   optional   Historical/cultural background.
+  whyVisit          string   optional   Why a visitor should care.
+  whatToNotice      [string] optional   Bulleted list of things to observe.
+  tips              [string] optional   Practical advice bullets.
+  duration          string   optional   e.g. "10–20 min"
+  bestFor           string   optional   e.g. "history and orientation"
+  images            [image]  optional   Array of image objects (see below).
+
+  image object
+  ------------
+  src     string   REQUIRED   Relative path or URL to the image.
+  alt     string   REQUIRED   Alt text for accessibility.
+  caption string   optional   Caption displayed below the image.
+
+  routes (array of objects)
+  -------------------------
+  id          string   REQUIRED   URL-safe identifier.
+  name        string   REQUIRED   Display name of the route.
+  description string   optional   Short description of the walk.
+  placeIds    [string] REQUIRED   Ordered array of place id values.
+
+  ============================================================
+  CUSTOMIZATION GUIDE
+  ============================================================
+
+  To deploy for a new neighborhood:
+  1. Replace the entire JSON object in <script id="neighborhood-data">.
+  2. Update area.title, area.subtitle, area.intro.
+  3. Update area.center (lat/lng) and area.zoom.
+  4. Add/replace the places array with new place objects.
+  5. Add/replace the routes array with new route objects.
+  6. Optionally update categories for new filter chips.
+
+  To change colors:
+  • Edit the CSS custom properties in the :root block near the top of <style>.
+
+  To add real images:
+  • Create an /images/ folder alongside index.html.
+  • Add image files (jpg, webp, etc.).
+  • Set place.images[n].src to "images/your-file.jpg".
+  • Missing images fail gracefully with a placeholder.
+
+  ============================================================
+  FUTURE: EXTERNAL DATA
+  ============================================================
+
+  To load data from a separate JSON file (requires a server or
+  GitHub Pages — not file:// protocol):
+
+    // Replace the JSON parse block in loadData() with:
+    async function loadData() {
+      const res  = await fetch('data/french-quarter.json');
+      return res.json();
+    }
+    // And change init() to: async function init() { state.data = await loadData(); … }
+
+  To generate multiple pages from the same template:
+  • Save this file as template.html (without the inline data block).
+  • Create one JSON file per neighborhood in a /data/ folder.
+  • A simple Node.js build script (or GitHub Action) can insert
+    each JSON file into the template and write index.html files
+    into neighborhood-specific subdirectories.
+  • No framework required — just string replacement or a minimal
+    templating library like mustache.js.
+  ============================================================
+-->
+
+</body>
+</html>
