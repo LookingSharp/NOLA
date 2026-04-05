@@ -1402,7 +1402,6 @@ const App = (() => {
         ${tagsHtml ? `<div class="tag-list">${tagsHtml}</div>` : ''}
         ${metaHtml}
       </div>
-      ${accordionHtml}
       <div class="place-card-footer">
         <button class="btn btn-sm btn-primary" type="button"
                 onclick="App.focusMap('${esc(place.id)}')">
@@ -1410,6 +1409,7 @@ const App = (() => {
         </button>
         ${mapsLinkHtml}
       </div>
+      ${accordionHtml}
     `;
 
     return card;
