@@ -540,6 +540,7 @@
 <footer id="site-footer">
   <p>Map data © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors.
      Powered by <a href="https://leafletjs.com" target="_blank" rel="noopener">Leaflet</a>.</p>
+  <p id="footer-version"></p>
 </footer>
 
 <!-- ============================================================
@@ -602,7 +603,8 @@
     "subtitle": "Self-guided explorer · New Orleans, Louisiana",
     "intro": "The French Quarter, founded in 1718, is the oldest neighborhood in New Orleans and the cultural heart of the city. Wander its narrow streets past wrought-iron balconies, Spanish Creole architecture rebuilt after the great fires of the 1790s, legendary music venues, and one of America's great public squares.",
     "center": { "lat": 29.9574, "lng": -90.0620 },
-    "zoom": 16
+    "zoom": 16,
+    "version": "1.1"
   },
   "categories": [
     { "id": "history",      "label": "History" },
@@ -642,7 +644,7 @@
       "bestFor": "orientation and history",
       "images": [
         {
-          "src": "https://upload.wikimedia.org/wikipedia/commons/6/62/Jackson_Square_New_Orleans.jpg",
+          "src": "https://upload.wikimedia.org/wikipedia/en/thumb/6/6a/Jackson_Square%2C_French_Quarter.jpg/800px-Jackson_Square%2C_French_Quarter.jpg",
           "alt": "Jackson Square with St. Louis Cathedral in the background",
           "caption": "Jackson Square — the heart of the French Quarter"
         }
@@ -675,7 +677,7 @@
       "bestFor": "architecture and quiet reflection",
       "images": [
         {
-          "src": "https://upload.wikimedia.org/wikipedia/commons/7/73/St._Louis_Cathedral_%28New_Orleans%29_9.jpg",
+          "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/ba/St._Louis_Cathedral_%28New_Orleans%29.jpg/800px-St._Louis_Cathedral_%28New_Orleans%29.jpg",
           "alt": "Facade of St. Louis Cathedral with white steeples",
           "caption": "St. Louis Cathedral, founded 1718"
         }
@@ -709,7 +711,7 @@
       "bestFor": "food and a classic New Orleans moment",
       "images": [
         {
-          "src": "https://upload.wikimedia.org/wikipedia/commons/7/7d/Cafe_du_Monde_New_Orleans.jpg",
+          "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/ef/Cafe_du_Monde_New_Orleans.jpg/800px-Cafe_du_Monde_New_Orleans.jpg",
           "alt": "Beignets dusted with powdered sugar on a plate at Café du Monde",
           "caption": "Beignets and café au lait — the classic order"
         }
@@ -742,7 +744,7 @@
       "bestFor": "local shopping and snacks",
       "images": [
         {
-          "src": "https://upload.wikimedia.org/wikipedia/commons/d/d6/French_Market%2C_New_Orleans_%282019%29.jpg",
+          "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/86/French_Market%2C_New_Orleans.JPG/800px-French_Market%2C_New_Orleans.JPG",
           "alt": "Covered stalls of the French Market along the riverfront",
           "caption": "The French Market — in continuous operation since 1791"
         }
@@ -775,7 +777,7 @@
       "bestFor": "architecture and window shopping",
       "images": [
         {
-          "src": "https://upload.wikimedia.org/wikipedia/commons/0/0b/Royal_Street%2C_French_Quarter%2C_New_Orleans%2C_10_January_2022_-_04.jpg",
+          "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/ab/Royal_Street%2C_French_Quarter%2C_New_Orleans%2C_10_January_2022_-_04.jpg/800px-Royal_Street%2C_French_Quarter%2C_New_Orleans%2C_10_January_2022_-_04.jpg",
           "alt": "Ornate cast-iron balconies on Royal Street in the French Quarter",
           "caption": "Royal Street — the Quarter's antique and art corridor"
         }
@@ -808,7 +810,7 @@
       "bestFor": "nightlife and cultural spectacle",
       "images": [
         {
-          "src": "https://upload.wikimedia.org/wikipedia/commons/2/27/Bourbon_Street%2C_New_Orleans.jpg",
+          "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Bourbon_Street%2C_New_Orleans%2C_Louisiana.jpg/800px-Bourbon_Street%2C_New_Orleans%2C_Louisiana.jpg",
           "alt": "Neon-lit Bourbon Street at night with crowds",
           "caption": "Bourbon Street — 24-hour entertainment corridor"
         }
@@ -842,7 +844,7 @@
       "bestFor": "traditional jazz and authentic New Orleans music",
       "images": [
         {
-          "src": "https://upload.wikimedia.org/wikipedia/commons/7/72/Preservation_Hall%2C_New_Orleans.JPG",
+          "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c9/Preservation_Hall%2C_New_Orleans.JPG/800px-Preservation_Hall%2C_New_Orleans.JPG",
           "alt": "Exterior of Preservation Hall with small sign on St. Peter Street",
           "caption": "Preservation Hall — founded 1961 to preserve traditional jazz"
         }
@@ -875,7 +877,7 @@
       "bestFor": "history and local archives",
       "images": [
         {
-          "src": "https://upload.wikimedia.org/wikipedia/commons/d/dc/Historic_New_Orleans_Collection_New_Quarters_on_Royal_Street_Balcony.jpg",
+          "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f3/MerieultHouse.jpg/800px-MerieultHouse.jpg",
           "alt": "Courtyard of the Historic New Orleans Collection on Royal Street",
           "caption": "Historic New Orleans Collection — free galleries on Royal Street"
         }
@@ -908,7 +910,7 @@
       "bestFor": "orientation and free cultural exhibits",
       "images": [
         {
-          "src": "https://upload.wikimedia.org/wikipedia/commons/c/c1/Jean_Lafitte_National_Historical_Park_and_Preserve_%281%29.JPG",
+          "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f2/Jean_Lafitte_National_Historical_Park_and_Preserve_%281%29.JPG/800px-Jean_Lafitte_National_Historical_Park_and_Preserve_%281%29.JPG",
           "alt": "Entrance to the Jean Lafitte National Historical Park visitor center",
           "caption": "Jean Lafitte NHP Visitor Center — free and excellent"
         }
@@ -943,7 +945,7 @@
       "bestFor": "views and appreciating the river",
       "images": [
         {
-          "src": "https://upload.wikimedia.org/wikipedia/commons/2/2b/Mississippi_River_at_the_Moonwalk%2C_French_Quarter%2C_New_Orleans%2C_March_2019_01.jpg",
+          "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3f/Mississippi_River_at_the_Moonwalk%2C_French_Quarter%2C_New_Orleans%2C_March_2019_01.jpg/800px-Mississippi_River_at_the_Moonwalk%2C_French_Quarter%2C_New_Orleans%2C_March_2019_01.jpg",
           "alt": "View of the Mississippi River from the Moon Walk levee",
           "caption": "Moon Walk — the Mississippi runs above New Orleans street level"
         }
@@ -1093,6 +1095,11 @@ const App = (() => {
     document.getElementById('header-title').textContent    = area.title    || '';
     document.getElementById('header-subtitle').textContent = area.subtitle || '';
     document.getElementById('header-intro').textContent    = area.intro    || '';
+
+    if (area.version) {
+      const versionEl = document.getElementById('footer-version');
+      if (versionEl) versionEl.textContent = 'v' + area.version;
+    }
   }
 
   /* ============================================================
@@ -1364,7 +1371,7 @@ const App = (() => {
     let thumbHtml;
     if (firstImg) {
       // On error: hide the broken image and show a visible placeholder with accessible alt text
-      thumbHtml = `<img class="place-card-thumb" src="${esc(firstImg.src)}" alt="${esc(firstImg.alt)}" loading="lazy"
+      thumbHtml = `<img class="place-card-thumb" src="${esc(firstImg.src)}" alt="${esc(firstImg.alt)}" loading="lazy" referrerpolicy="no-referrer"
                         onerror="this.style.display='none';this.nextElementSibling.removeAttribute('aria-hidden');this.nextElementSibling.style.display='flex'" />
                    <div class="place-card-thumb-placeholder" aria-hidden="true" role="img" aria-label="${esc(firstImg.alt)}" style="display:none">No image available</div>`;
     } else {
@@ -1395,7 +1402,6 @@ const App = (() => {
         ${tagsHtml ? `<div class="tag-list">${tagsHtml}</div>` : ''}
         ${metaHtml}
       </div>
-      ${accordionHtml}
       <div class="place-card-footer">
         <button class="btn btn-sm btn-primary" type="button"
                 onclick="App.focusMap('${esc(place.id)}')">
@@ -1403,6 +1409,7 @@ const App = (() => {
         </button>
         ${mapsLinkHtml}
       </div>
+      ${accordionHtml}
     `;
 
     return card;
