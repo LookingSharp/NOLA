@@ -530,7 +530,7 @@
      ============================================================ -->
 <div id="lightbox" role="dialog" aria-modal="true" aria-label="Image viewer">
   <button id="lightbox-close" aria-label="Close image viewer">×</button>
-  <img id="lightbox-img" src="" alt="" />
+  <img id="lightbox-img" src="" alt="" referrerpolicy="no-referrer" />
   <p id="lightbox-caption"></p>
 </div>
 
@@ -1461,6 +1461,7 @@ const App = (() => {
           <img src="${esc(img.src)}"
                alt="${esc(img.alt)}"
                loading="lazy"
+               referrerpolicy="no-referrer"
                onclick="App.openLightbox('${esc(img.src)}','${esc(img.alt)}','${esc(img.caption || '')}')"
                onerror="App.handleGalleryImgError(this)" />
           ${img.caption ? `<p class="gallery-caption">${esc(img.caption)}</p>` : ''}
