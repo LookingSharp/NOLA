@@ -5,6 +5,8 @@ Built with plain HTML, CSS, and JavaScript — no framework, no build step.
 
 ## Live site
 
+**https://lookingsharp.github.io/NOLA/index.html**
+
 Deploy to GitHub Pages by enabling it in **Settings → Pages → Deploy from branch (main / root)**.
 The site is served from `index.html` at the repository root.
 
